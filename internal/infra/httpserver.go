@@ -21,10 +21,6 @@ type Cors struct {
 	MaxAge           int      `mapstructure:"max_age"`
 }
 
-type Router interface {
-	RegisterRoutes(*gin.Engine)
-}
-
 func InitHttpserver(cfg *HttpserverConfig, opts ...gin.OptionFunc) (*gin.Engine, error) {
 	e := gin.Default()
 	e.Use(cors.New(cors.Config{
