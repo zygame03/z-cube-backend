@@ -3,11 +3,13 @@ package fetcher
 import (
 	"context"
 	"strings"
+	"z-cube-backend/internal/logger"
 
 	"github.com/mmcdole/gofeed"
 	"github.com/panjf2000/ants"
 	"github.com/redis/go-redis/v9"
 	"github.com/robfig/cron/v3"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -42,12 +44,13 @@ func (s *Service) RegisterCron(cron *cron.Cron) error {
 	return nil
 }
 
-// 执行 RSS 抓取任务
 func (s *Service) Run() {
-	// 获取开启的路由
 	routes := s.router.FetchableRoutes()
 	num := len(routes)
 	if num == 0 {
+		logger.Info(
+			"no fetchable route",
+		)
 		return
 	}
 
@@ -56,25 +59,34 @@ func (s *Service) Run() {
 	})
 	defer p.Release()
 
-	// 提交任务
 	for _, route := range routes {
 		_ = p.Invoke(route)
 	}
 }
 
-// 抓取单个路由的 RSS Feed
 func (s *Service) FetchRoute(route any) {
 	ctx := context.Background()
 	feed, err := s.parser.ParseURLWithContext(s.router.baseURL, ctx)
 	if err != nil {
+		logger.Error(
+			"parse url failed",
+			zap.String("url", s.router.baseURL),
+			zap.Error(err),
+		)
 		return
 	}
 
 	if feed == nil {
+		logger.Info(
+			"feed item failed",
+		)
 		return
 	}
 
 	if len(feed.Items) == 0 {
+		logger.Info(
+			"no feed items",
+		)
 		return
 	}
 
@@ -86,9 +98,12 @@ func (s *Service) FetchRoute(route any) {
 		}
 	}
 
-	// 落库
 	err = s.db.FeedItemsWrite(ctx, items)
 	if err != nil {
+		logger.Error(
+			"repo feed write failed",
+			zap.Error(err),
+		)
 	}
 }
 
