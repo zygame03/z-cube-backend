@@ -5,6 +5,8 @@ import (
 	"z-cube-backend/internal/fetcher"
 	"z-cube-backend/internal/infra"
 	"z-cube-backend/internal/logger"
+
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -31,16 +33,26 @@ func main() {
 		)
 	}
 
-	httpserver, err := infra.InitHttpserver(&cfg.Httpserver)
+	cron := cron.New()
+
+	fetcherSvc := fetcher.NewService(db, rdb)
+	fetcherSvc.RegisterCron(cron)
+	fetcherHandler := fetcher.NewHandler(fetcherSvc)
+
+	handler := []infra.Router{
+		fetcherHandler,
+	}
+
+	cron.Start()
+	defer cron.Stop()
+
+	server, err := infra.InitHttpserver(&cfg.Httpserver, handler)
 	if err != nil {
 		logger.Fatal(
 			"initialize httpserver failed",
 		)
 	}
 
-	fetcherSvc := fetcher.NewService(db, rdb)
-	fetcherHandler := fetcher.NewHandler(fetcherSvc)
-	fetcherHandler.RegisterRoutes(httpserver)
+	server.ListenAndServe()
 
-	httpserver.Run(":8080")
 }

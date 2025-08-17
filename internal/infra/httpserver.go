@@ -1,6 +1,7 @@
 package infra
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -8,8 +9,8 @@ import (
 )
 
 type HttpserverConfig struct {
-	Port int `mapstructure:"port" json:"port"`
-	Cors `mapstructure:"cors"`
+	Port string `mapstructure:"port" json:"port"`
+	Cors Cors   `mapstructure:"cors"`
 }
 
 type Cors struct {
@@ -21,18 +22,29 @@ type Cors struct {
 	MaxAge           int      `mapstructure:"max_age"`
 }
 
-func InitHttpserver(cfg *HttpserverConfig, opts ...gin.OptionFunc) (*gin.Engine, error) {
-	e := gin.Default()
-	e.Use(cors.New(cors.Config{
-		AllowOrigins:     cfg.AllowOrigins,
-		AllowMethods:     cfg.AllowMethods,
-		AllowHeaders:     cfg.AllowHeaders,
-		ExposeHeaders:    cfg.ExposeHeaders,
-		AllowCredentials: cfg.AllowCredentials,
-		MaxAge:           time.Duration(cfg.MaxAge) * time.Hour,
+type Router interface {
+	RegisterRoutes(*gin.Engine)
+}
+
+func InitHttpserver(conf *HttpserverConfig, routes []Router, opts ...gin.OptionFunc) (*http.Server, error) {
+	h := gin.Default()
+	h.Use(cors.New(cors.Config{
+		AllowOrigins:     conf.Cors.AllowOrigins,
+		AllowMethods:     conf.Cors.AllowMethods,
+		AllowHeaders:     conf.Cors.AllowHeaders,
+		ExposeHeaders:    conf.Cors.ExposeHeaders,
+		AllowCredentials: conf.Cors.AllowCredentials,
+		MaxAge:           time.Duration(conf.Cors.MaxAge) * time.Hour,
 	}))
 
-	e.With(opts...)
+	h.With(opts...)
 
-	return e, nil
+	for _, r := range routes {
+		r.RegisterRoutes(h)
+	}
+
+	return &http.Server{
+		Addr:    conf.Port,
+		Handler: h,
+	}, nil
 }
