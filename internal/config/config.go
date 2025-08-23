@@ -15,9 +15,9 @@ type config struct {
 	Database   infra.DatabaseConfig   `mapstructure:"database" json:"database"`
 }
 
-func InitConfig(path, name string) (*config, error) {
+func InitConfig(path, name, ftype string) (*config, error) {
 	var cfg config
-	err := loadConfig(path, name, &cfg)
+	err := loadConfig(path, name, ftype, &cfg)
 	if err != nil {
 		return nil, err
 	}

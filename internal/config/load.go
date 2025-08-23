@@ -1,20 +1,33 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"z-cube-backend/internal/logger"
 
-func loadConfig(path, name string, cfg any) error {
+	"github.com/spf13/viper"
+	"go.uber.org/zap"
+)
+
+func loadConfig(path, name, ftype string, cfg any) error {
 	v := viper.New()
 	v.AddConfigPath(path)
-	v.SetConfigFile(name)
-	v.SetConfigType("json")
+	v.SetConfigName(name)
+	v.SetConfigType(ftype)
 
 	err := v.ReadInConfig()
 	if err != nil {
+		logger.Error(
+			"read config error",
+			zap.Error(err),
+		)
 		return err
 	}
 
 	err = v.Unmarshal(cfg)
 	if err != nil {
+		logger.Error(
+			"unmarshal config failed",
+			zap.Error(err),
+		)
 		return err
 	}
 
