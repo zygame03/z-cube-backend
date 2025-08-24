@@ -25,6 +25,14 @@ func main() {
 		)
 	}
 
+	_, err = config.InitDynamicConfig("./config", "config", "json")
+	if err != nil {
+		logger.Fatal(
+			"initialize dynamic config failed",
+			zap.Error(err),
+		)
+	}
+
 	db, err := infra.InitDatabase(&cfg.Database)
 	if err != nil {
 		logger.Fatal(
@@ -41,7 +49,7 @@ func main() {
 
 	cron := cron.New()
 
-	fetcherSvc := fetcher.NewService(db, rdb)
+	fetcherSvc := fetcher.NewService(db, rdb, config.GetFetcherConfig)
 	fetcherSvc.RegisterCron(cron)
 	fetcherHandler := fetcher.NewHandler(fetcherSvc)
 

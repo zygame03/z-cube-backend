@@ -16,14 +16,16 @@ import (
 type Service struct {
 	db     *repo
 	rdb    *cache
+	cfg    func() *Config
 	parser *gofeed.Parser
 	router *Router
 }
 
-func NewService(db *gorm.DB, rdb *redis.Client) *Service {
+func NewService(db *gorm.DB, rdb *redis.Client, cfg func() *Config) *Service {
 	return &Service{
 		db:     NewRepo(db),
-		rdb:    NewCache(rdb),
+		rdb:    NewCache(rdb, cfg),
+		cfg:    cfg,
 		parser: gofeed.NewParser(),
 		router: NewRouter("132.232.238.184:1200"),
 	}
@@ -107,7 +109,6 @@ func (s *Service) FetchRoute(route any) {
 	}
 }
 
-// 格式化
 func (s *Service) ItemFormat(item *gofeed.Item, source string) *FeedItem {
 	if item == nil {
 		return nil
