@@ -22,13 +22,14 @@ type Service struct {
 }
 
 func NewService(db *gorm.DB, rdb *redis.Client, cfg func() *Config) *Service {
-	return &Service{
+	srv := &Service{
 		db:     NewRepo(db),
 		rdb:    NewCache(rdb, cfg),
 		cfg:    cfg,
 		parser: gofeed.NewParser(),
-		router: NewRouter("132.232.238.184:1200"),
 	}
+	srv.router = NewRouter(srv.cfg().BaseURL)
+	return srv
 }
 
 type routeView struct {
@@ -36,17 +37,27 @@ type routeView struct {
 	path string
 }
 
+// 注册定时任务
+// 感觉需要调整，能实时控制开启和关闭
 func (s *Service) RegisterCron(cron *cron.Cron) error {
-	_, err := cron.AddFunc("@every 3h", func() {
+	_, err := cron.AddFunc("@every "+s.cfg().Interval.String(), func() {
 		s.Run()
 	})
 	if err != nil {
-		return nil
+		logger.Error(
+			"add cron failed",
+			zap.String("func", "Run"),
+		)
 	}
+	logger.Info(
+		"add cron",
+		zap.String("func", "Run"),
+	)
 	return nil
 }
 
 func (s *Service) Run() {
+	// 获取开启的路由
 	routes := s.router.FetchableRoutes()
 	num := len(routes)
 	if num == 0 {
@@ -56,16 +67,19 @@ func (s *Service) Run() {
 		return
 	}
 
-	p, _ := ants.NewPoolWithFunc(10, func(i any) {
+	// 使用协程池并发获取
+	p, _ := ants.NewPoolWithFunc(s.cfg().Concurrency, func(i any) {
 		s.FetchRoute(i)
 	})
 	defer p.Release()
 
+	// 提交参数
 	for _, route := range routes {
 		_ = p.Invoke(route)
 	}
 }
 
+// 获取路由
 func (s *Service) FetchRoute(route any) {
 	ctx := context.Background()
 	feed, err := s.parser.ParseURLWithContext(s.router.baseURL, ctx)
@@ -100,6 +114,11 @@ func (s *Service) FetchRoute(route any) {
 		}
 	}
 
+	// 也许应该先写一份缓存
+	// TODO
+
+	// 落库
+	// 是否改为异步进行？
 	err = s.db.FeedItemsWrite(ctx, items)
 	if err != nil {
 		logger.Error(
@@ -107,18 +126,22 @@ func (s *Service) FetchRoute(route any) {
 			zap.Error(err),
 		)
 	}
+	logger.Info(
+		"fetch finished",
+		zap.String("name", route.(*routeView).name),
+		zap.String("url", route.(*routeView).path),
+	)
 }
 
+// 数据格式化
 func (s *Service) ItemFormat(item *gofeed.Item, source string) *FeedItem {
 	if item == nil {
 		return nil
 	}
-
 	author := ""
 	if item.Author != nil {
 		author = item.Author.Name
 	}
-
 	category := ""
 	if len(item.Categories) > 0 {
 		category = strings.Join(item.Categories, ",")
@@ -133,7 +156,6 @@ func (s *Service) ItemFormat(item *gofeed.Item, source string) *FeedItem {
 		Category:    category,
 		Source:      source,
 	}
-
 	feedItem.ID = feedItem.GetId()
 
 	return feedItem

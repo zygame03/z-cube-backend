@@ -47,4 +47,6 @@ var (
 	// 注册业务码
 	Success = RegisterResult(SUCCESS, "成功")
 	Fail    = RegisterResult(FAIL, "失败")
+
+	ErrUserNotFound = RegisterResult(1000, "未知用户")
 )

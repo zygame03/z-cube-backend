@@ -1,13 +1,12 @@
 package fetcher
 
-type Config struct {
-	Router  RouterConfig  `mapstructure:"router" json:"router"`
-	Fetcher FetcherConfig `mapstructure:"fetcher" json:"fetcher"`
-	Routes  []Route       `mapstructure:"routes" json:"routes"`
-}
+import "time"
 
-type RouterConfig struct {
-	BaseURL string `mapstructure:"baseUrl" json:"baseUrl"`
+type Config struct {
+	Concurrency int           `mapstructure:"concurrency" json:"concurrency"`
+	Interval    time.Duration `mapstructure:"interval" json:"interval"`
+	BaseURL     string        `mapstructure:"baseUrl" json:"baseUrl"`
+	Routes      []Route       `mapstructure:"routes" json:"routes"`
 }
 
 type Route struct {
@@ -15,9 +14,4 @@ type Route struct {
 	Path     string `mapstructure:"path" json:"path"`
 	Enabled  bool   `mapstructure:"enabled" json:"enabled"`
 	Category string `mapstructure:"category" json:"category"`
-}
-
-type FetcherConfig struct {
-	Concurrency int `mapstructure:"concurrency" json:"concurrency"`
-	Interval    int `mapstructure:"interval" json:"interval"`
 }
